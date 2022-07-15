@@ -1,10 +1,11 @@
-import React from 'react'
+import React from 'react';
+import axios from 'axios'
 
 // Suggested initial states
 const initialMessage = ''
 const initialEmail = ''
 const initialSteps = 0
-const initialIndex = 4 // the index the "B" is at
+const initialIndex = 3 // the index the "B" is at
 
 const initialState = {
   message: initialMessage,
@@ -13,23 +14,40 @@ const initialState = {
   steps: initialSteps,
 }
 
+const grid = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
 export default class AppClass extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state ={ ...initialState}
+  }
   // THE FOLLOWING HELPERS ARE JUST RECOMMENDATIONS.
   // You can delete them and build your own logic from scratch.
+
+  componentDidMount(){
+    console.log(this.getXY())
+    console.log(this.getXYMessage())
+  }
 
   getXY = () => {
     // It it not necessary to have a state to track the coordinates.
     // It's enough to know what index the "B" is at, to be able to calculate them.
+    return {
+      x: Math.floor(this.state.index % 3) * 3,
+      y: Math.floor(this.state.index / 3) * 3,
+    }
   }
 
   getXYMessage = () => {
     // It it not necessary to have a state to track the "Coordinates (2, 2)" message for the user.
     // You can use the `getXY` helper above to obtain the coordinates, and then `getXYMessage`
     // returns the fully constructed string.
+    const coordinates = this.getXY()
+    return `Coordinates (${coordinates.x}, ${coordinates.y})`
   }
 
   reset = () => {
-    // Use this helper to reset all states to their initial values.
+    this.setState({...initialState})
   }
 
   getNextIndex = (direction) => {
@@ -44,10 +62,26 @@ export default class AppClass extends React.Component {
   }
 
   onChange = (evt) => {
-    // You will need this to update the value of the input.
+    this.setState({[evt.target.id]: evt.target.value})
   }
 
-  onSubmit = (evt) => {
+  onSubmit = async () => {
+    if (!this.state.email) {
+      this.setState({message: 'Ouch: email is required'})
+    } else {
+    const coordinates = this.getXY()
+    const result = await axios({
+        method: 'POST',
+        url: 'http://localhost:9000/api/result',
+        data: {
+          ...coordinates,
+          steps: this.state.steps,
+          email: this.state.email
+        }
+      })
+
+    this.setState({message: result.data?.message})
+    }
     // Use a POST request to send a payload to the server.
   }
 
@@ -56,20 +90,20 @@ export default class AppClass extends React.Component {
     return (
       <div id="wrapper" className={className}>
         <div className="info">
-          <h3 id="coordinates">Coordinates (2, 2)</h3>
-          <h3 id="steps">You moved 0 times</h3>
+          <h3 id="coordinates">{this.getXYMessage}</h3>
+          <h3 id="steps">{`You moved ${this.state.steps} times`}</h3>
         </div>
         <div id="grid">
           {
-            [0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
-              <div key={idx} className={`square${idx === 4 ? ' active' : ''}`}>
-                {idx === 4 ? 'B' : null}
+            grid.map(idx => (
+              <div key={idx} className={`square${idx === this.state.index ? ' active' : ''}`}>
+                {idx === this.state.index ? 'B' : null}
               </div>
             ))
           }
         </div>
         <div className="info">
-          <h3 id="message"></h3>
+          <h3 id="message">{this.state.message}</h3>
         </div>
         <div id="keypad">
           <button id="left">LEFT</button>
@@ -79,8 +113,8 @@ export default class AppClass extends React.Component {
           <button id="reset">reset</button>
         </div>
         <form>
-          <input id="email" type="email" placeholder="type email"></input>
-          <input id="submit" type="submit"></input>
+          <input id="email" type="email" placeholder="type email" onChange={this.onChange}></input>
+          <input id="submit" type="submit" onClick={this.onSubmit}></input>
         </form>
       </div>
     )
